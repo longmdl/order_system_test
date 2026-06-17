@@ -4,10 +4,6 @@ A teaching project that demonstrates the **Saga pattern** for distributed transa
 
 ---
 
-## What this teaches
-
-The Saga pattern solves a hard problem: how do you keep multiple services consistent when there's no shared database transaction? Instead of a two-phase commit, you break the operation into steps with explicit **compensating actions** if anything fails.
-
 This project models placing an order:
 
 ```
