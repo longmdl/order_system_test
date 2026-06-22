@@ -21,6 +21,9 @@ public class OrderResponse {
     private String workflowId;
     private String failureReason;
     private String trackingNumber;
+    private Integer demoPaymentFailures;
+    private Boolean simulatePaymentTimeout;
+    private Boolean requireApproval;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

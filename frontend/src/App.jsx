@@ -63,7 +63,12 @@ export default function App() {
             Refresh
           </button>
         </div>
-        <OrderGrid orders={orders} loading={loading} expandOrderId={expandOrderId} />
+        <OrderGrid
+          orders={orders}
+          loading={loading}
+          expandOrderId={expandOrderId}
+          onOrderChanged={fetchOrders}
+        />
       </section>
 
       <p style={{ color: '#334155', fontSize: 11, textAlign: 'center', marginTop: 24 }}>

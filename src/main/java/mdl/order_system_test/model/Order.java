@@ -34,6 +34,10 @@ public class Order {
     private String failureReason;
     private String trackingNumber;
 
+    private Integer demoPaymentFailures;
+    private Boolean simulatePaymentTimeout;
+    private Boolean requireApproval;
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 

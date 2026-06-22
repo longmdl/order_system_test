@@ -9,6 +9,9 @@ const VALID_PRESET = () => ({
   orderId: `ORD-${uid()}`,
   customerId: 'CUST-42',
   amount: '299.99',
+  demoPaymentFailures: 0,
+  simulatePaymentTimeout: false,
+  requireApproval: false,
   items: [
     { productId: 'PROD-001', productName: 'Wireless Headphones', quantity: 1, unitPrice: '199.99' },
     { productId: 'PROD-002', productName: 'USB-C Cable',         quantity: 2, unitPrice: '49.99'  },
@@ -21,18 +24,38 @@ const INVALID_PRESET = () => ({
   orderId: `ORD-HV-${uid()}`,
   customerId: 'CUST-99',
   amount: '15000.00',
+  demoPaymentFailures: 0,
+  simulatePaymentTimeout: false,
+  requireApproval: false,
   items: [
     { productId: 'PROD-LUX-001', productName: 'Diamond Watch', quantity: 1, unitPrice: '15000.00' },
   ],
 })
 
+const RETRY_APPROVAL_PRESET = () => ({
+  orderId: `ORD-RETRY-${uid()}`,
+  customerId: 'CUST-77',
+  amount: '499.99',
+  demoPaymentFailures: 2,
+  simulatePaymentTimeout: false,
+  requireApproval: true,
+  items: [
+    { productId: 'PROD-RET-001', productName: 'Laptop Dock', quantity: 1, unitPrice: '499.99' },
+  ],
+})
+
+const EMPTY_FORM = () => ({
+  orderId: '',
+  customerId: '',
+  amount: '',
+  demoPaymentFailures: 0,
+  simulatePaymentTimeout: false,
+  requireApproval: false,
+  items: [{ ...defaultItem }],
+})
+
 export default function OrderForm({ onOrderCreated }) {
-  const [form, setForm] = useState({
-    orderId: '',
-    customerId: '',
-    amount: '',
-    items: [{ ...defaultItem }],
-  })
+  const [form, setForm] = useState(EMPTY_FORM())
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
@@ -56,11 +79,14 @@ export default function OrderForm({ onOrderCreated }) {
       const payload = {
         ...form,
         amount: parseFloat(form.amount),
+        demoPaymentFailures: parseInt(form.demoPaymentFailures),
+        simulatePaymentTimeout: Boolean(form.simulatePaymentTimeout),
+        requireApproval: Boolean(form.requireApproval),
         items: form.items.map(it => ({ ...it, quantity: parseInt(it.quantity), unitPrice: parseFloat(it.unitPrice) })),
       }
       await orderApi.createOrder(payload)
       onOrderCreated(payload.orderId)
-      setForm({ orderId: '', customerId: '', amount: '', items: [{ ...defaultItem }] })
+      setForm(EMPTY_FORM())
     } catch (err) {
       setError(err.message)
     } finally {
@@ -73,6 +99,7 @@ export default function OrderForm({ onOrderCreated }) {
     color: '#e2e8f0', padding: '6px 10px', fontSize: 13, width: '100%',
   }
   const labelStyle = { fontSize: 12, color: '#94a3b8', marginBottom: 3, display: 'block' }
+  const checkboxLabelStyle = { display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 12 }
 
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -94,6 +121,13 @@ export default function OrderForm({ onOrderCreated }) {
           }}>
           High-Value (Fraud / Chaos)
         </button>
+        <button type="button" onClick={() => setForm(RETRY_APPROVAL_PRESET())}
+          style={{
+            fontSize: 12, padding: '4px 14px', borderRadius: 6, cursor: 'pointer', fontWeight: 600,
+            background: '#172554', border: '1px solid #2563eb', color: '#93c5fd',
+          }}>
+          Retry + Approval
+        </button>
         <span style={{ fontSize: 11, color: '#475569' }}>IDs are unique per click</span>
       </div>
 
@@ -113,6 +147,28 @@ export default function OrderForm({ onOrderCreated }) {
           <input style={inputStyle} type="number" min="0.01" step="0.01"
             value={form.amount} onChange={e => updateField('amount', e.target.value)} placeholder="99.99" required />
         </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', gap: 12, alignItems: 'end' }}>
+        <div>
+          <label style={labelStyle}>Payment Retry Demo</label>
+          <select style={inputStyle} value={form.demoPaymentFailures}
+            onChange={e => updateField('demoPaymentFailures', e.target.value)}>
+            <option value={0}>No forced failures</option>
+            <option value={1}>Fail once, succeed on 2nd attempt</option>
+            <option value={2}>Fail twice, succeed on 3rd attempt</option>
+          </select>
+        </div>
+        <label style={checkboxLabelStyle}>
+          <input type="checkbox" checked={form.simulatePaymentTimeout}
+            onChange={e => updateField('simulatePaymentTimeout', e.target.checked)} />
+          Simulate one payment response timeout
+        </label>
+        <label style={checkboxLabelStyle}>
+          <input type="checkbox" checked={form.requireApproval}
+            onChange={e => updateField('requireApproval', e.target.checked)} />
+          Require manual approval before shipment
+        </label>
       </div>
 
       <div>

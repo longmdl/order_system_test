@@ -6,6 +6,7 @@ import com.netflix.conductor.client.worker.Worker;
 import com.netflix.conductor.common.metadata.tasks.Task;
 import com.netflix.conductor.common.metadata.tasks.TaskResult;
 import lombok.extern.slf4j.Slf4j;
+import mdl.order_system_test.worker.SimulatedTaskTimeoutException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -61,8 +62,22 @@ public class WorkerPollingService {
                 // Build a minimal Task; workers only call getInputData(), getTaskId(), etc.
                 Task task = buildTask(raw);
 
-                log.info("[{}] claimed task={}", worker.getTaskDefName(), taskId);
-                TaskResult result = worker.execute(task);
+                log.info("[{}] claimed task={} retryCount={} pollCount={} responseTimeoutSeconds={}",
+                        worker.getTaskDefName(),
+                        taskId,
+                        task.getRetryCount(),
+                        task.getPollCount(),
+                        task.getResponseTimeoutSeconds());
+                TaskResult result;
+                try {
+                    result = worker.execute(task);
+                } catch (SimulatedTaskTimeoutException e) {
+                    log.warn("[{}] leaving task={} unacknowledged for response-timeout demo: {}",
+                            worker.getTaskDefName(), taskId, e.getMessage());
+                    continue;
+                } catch (Exception e) {
+                    result = failedResult(task, e);
+                }
 
                 // Serialize TaskResult as plain JSON and POST back to Conductor
                 HttpHeaders headers = new HttpHeaders();
@@ -83,10 +98,15 @@ public class WorkerPollingService {
         Task task = new Task();
         task.setTaskId((String) raw.get("taskId"));
         task.setTaskType((String) raw.get("taskType"));
+        task.setTaskDefName((String) raw.getOrDefault("taskDefName", raw.get("taskType")));
         task.setReferenceTaskName((String) raw.get("referenceTaskName"));
         task.setWorkflowInstanceId((String) raw.get("workflowInstanceId"));
         task.setWorkflowType((String) raw.get("workflowType"));
         task.setCorrelationId((String) raw.get("correlationId"));
+        task.setRetryCount(toInt(raw.get("retryCount")));
+        task.setPollCount(toInt(raw.get("pollCount")));
+        task.setResponseTimeoutSeconds(toLong(raw.get("responseTimeoutSeconds")));
+        task.setWorkerId("order-backend-1");
         task.setStatus(Task.Status.IN_PROGRESS);
 
         Object inputDataObj = raw.get("inputData");
@@ -96,5 +116,21 @@ public class WorkerPollingService {
             task.setInputData(new HashMap<>());
         }
         return task;
+    }
+
+    private TaskResult failedResult(Task task, Exception e) {
+        TaskResult result = new TaskResult(task);
+        result.setStatus(TaskResult.Status.FAILED);
+        result.setReasonForIncompletion(e.getMessage());
+        result.log(e.getClass().getSimpleName() + ": " + e.getMessage());
+        return result;
+    }
+
+    private int toInt(Object value) {
+        return value instanceof Number ? ((Number) value).intValue() : 0;
+    }
+
+    private long toLong(Object value) {
+        return value instanceof Number ? ((Number) value).longValue() : 0L;
     }
 }

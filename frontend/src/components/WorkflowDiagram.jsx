@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { orderApi } from '../api/orderApi'
 
 // Static layout mirroring conductor-workflow.json — validate -> fork(reserve/pay/fraud)
-// -> join -> decision -> [shipment + complete]  or  [release/void + compensate].
+// -> join -> saga decision -> optional manual approval -> shipment or compensation.
 const NODES = [
   { id: 'validate_order_ref', label: 'Validate Order', shape: 'rect', x: 10, y: 155, w: 150, h: 50 },
   { id: 'parallel_fulfillment_ref', label: '+', shape: 'diamond', x: 178, y: 158, w: 44, h: 44 },
@@ -11,11 +11,14 @@ const NODES = [
   { id: 'fraud_check_ref', label: 'Fraud Check', shape: 'rect', x: 250, y: 265, w: 160, h: 50 },
   { id: 'join_parallel_ref', label: '+', shape: 'diamond', x: 438, y: 158, w: 44, h: 44 },
   { id: 'saga_decision_ref', label: 'Saga Decision', shape: 'diamond', x: 505, y: 145, w: 110, h: 70 },
-  { id: 'shipment_ref', altIds: ['create_shipment_ref'], label: 'Shipment Sub-Workflow', sublabel: 'create_shipment', shape: 'rect', x: 660, y: 45, w: 180, h: 50 },
-  { id: 'update_status_success_ref', label: 'Update Status', sublabel: '→ COMPLETED', shape: 'rect', x: 880, y: 45, w: 200, h: 50 },
-  { id: 'release_inventory_comp_ref', label: 'Release Inventory', shape: 'rect', x: 660, y: 265, w: 160, h: 50 },
-  { id: 'void_payment_comp_ref', label: 'Void Payment', shape: 'rect', x: 840, y: 265, w: 150, h: 50 },
-  { id: 'update_status_comp_ref', label: 'Update Status', sublabel: '→ COMPENSATED', shape: 'rect', x: 1010, y: 265, w: 200, h: 50 },
+  { id: 'approval_gate_ref', label: 'Approval Gate', shape: 'diamond', x: 650, y: 145, w: 110, h: 70 },
+  { id: 'manual_approval_ref', label: 'Manual Approval', shape: 'rect', x: 800, y: 120, w: 160, h: 50 },
+  { id: 'approval_decision_ref', label: 'Approval Decision', shape: 'diamond', x: 1005, y: 145, w: 125, h: 70 },
+  { id: 'shipment_ref', altIds: ['create_shipment_ref'], label: 'Shipment Sub-Workflow', sublabel: 'create_shipment', shape: 'rect', x: 1190, y: 45, w: 180, h: 50 },
+  { id: 'update_status_success_ref', label: 'Update Status', sublabel: 'COMPLETED', shape: 'rect', x: 1405, y: 45, w: 170, h: 50 },
+  { id: 'release_inventory_comp_ref', altIds: ['release_inventory_reject_ref'], label: 'Release Inventory', shape: 'rect', x: 650, y: 265, w: 160, h: 50 },
+  { id: 'void_payment_comp_ref', altIds: ['void_payment_reject_ref'], label: 'Void Payment', shape: 'rect', x: 840, y: 265, w: 150, h: 50 },
+  { id: 'update_status_comp_ref', altIds: ['update_status_reject_ref'], label: 'Update Status', sublabel: 'COMPENSATED', shape: 'rect', x: 1025, y: 265, w: 180, h: 50 },
 ]
 
 const EDGES = [
@@ -27,11 +30,16 @@ const EDGES = [
   { from: [410, 180], to: [438, 180] },
   { from: [410, 290], to: [438, 180] },
   { from: [482, 180], to: [505, 180] },
-  { from: [560, 145], to: [660, 70], label: 'success' },
-  { from: [560, 215], to: [660, 290], label: 'compensation' },
-  { from: [840, 70], to: [880, 70] },
-  { from: [820, 290], to: [840, 290] },
-  { from: [990, 290], to: [1010, 290] },
+  { from: [615, 180], to: [650, 180], label: 'success' },
+  { from: [560, 215], to: [650, 290], label: 'payment failed' },
+  { from: [760, 180], to: [800, 145], label: 'required' },
+  { from: [760, 180], to: [1005, 180], label: 'skip' },
+  { from: [960, 145], to: [1005, 180] },
+  { from: [1130, 180], to: [1190, 70], label: 'approved' },
+  { from: [1065, 215], to: [650, 290], label: 'rejected' },
+  { from: [1370, 70], to: [1405, 70] },
+  { from: [810, 290], to: [840, 290] },
+  { from: [990, 290], to: [1025, 290] },
 ]
 
 const STATUS_STYLE = {
@@ -116,7 +124,7 @@ export default function WorkflowDiagram({ orderId }) {
         {execution?.status && <span style={badgeStyle(execution.status)}>{execution.status}</span>}
       </div>
 
-      <svg viewBox="0 0 1230 340" style={{ width: '100%', height: 'auto', background: '#0f172a', borderRadius: 8 }}>
+      <svg viewBox="0 0 1595 340" style={{ width: '100%', height: 'auto', background: '#0f172a', borderRadius: 8 }}>
         <defs>
           <marker id="wf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
             <path d="M0,0 L10,5 L0,10 z" fill="#475569" />

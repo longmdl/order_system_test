@@ -46,3 +46,8 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+tasks.named('processResources') {
+    from('conductor-workflow.json')
+    from('conductor-taskdefs.json')
+}

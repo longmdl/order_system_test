@@ -1,6 +1,8 @@
 package mdl.order_system_test.dto;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -25,4 +27,12 @@ public class CreateOrderRequest {
 
     @NotEmpty(message = "at least one item is required")
     private List<OrderItem> items;
+
+    @Min(value = 0, message = "demoPaymentFailures must be 0, 1, or 2")
+    @Max(value = 2, message = "demoPaymentFailures must be 0, 1, or 2")
+    private Integer demoPaymentFailures = 0;
+
+    private Boolean simulatePaymentTimeout = false;
+
+    private Boolean requireApproval = false;
 }

@@ -24,6 +24,13 @@ export const orderApi = {
 
   getWorkflowExecution: (orderId) =>
     fetch(`${BASE}/orders/${orderId}/workflow`).then(handleResponse),
+
+  completeApproval: (orderId, approved, reason = '') =>
+    fetch(`${BASE}/orders/${orderId}/approval`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approved, reviewer: 'Demo Reviewer', reason }),
+    }).then(handleResponse),
 }
 
 export const chaosApi = {

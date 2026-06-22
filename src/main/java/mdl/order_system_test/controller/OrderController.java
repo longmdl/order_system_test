@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -43,5 +44,15 @@ public class OrderController {
     @GetMapping("/{orderId}/workflow")
     public ResponseEntity<WorkflowExecutionResponse> getWorkflowExecution(@PathVariable String orderId) {
         return ResponseEntity.ok(orderService.getWorkflowExecution(orderId));
+    }
+
+    @PostMapping("/{orderId}/approval")
+    public ResponseEntity<OrderResponse> completeManualApproval(
+            @PathVariable String orderId,
+            @RequestBody Map<String, Object> body) {
+        boolean approved = Boolean.TRUE.equals(body.get("approved"));
+        String reviewer = body.get("reviewer") instanceof String ? (String) body.get("reviewer") : "demo-reviewer";
+        String reason = body.get("reason") instanceof String ? (String) body.get("reason") : "";
+        return ResponseEntity.ok(orderService.completeManualApproval(orderId, approved, reviewer, reason));
     }
 }

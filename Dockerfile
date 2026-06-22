@@ -10,6 +10,7 @@ RUN chmod +x gradlew && ./gradlew dependencies --no-daemon --quiet
 
 # Compile and package (skip tests — they run in CI)
 COPY src/ src/
+COPY conductor-workflow.json conductor-taskdefs.json ./
 RUN ./gradlew bootJar --no-daemon -x test
 
 # ── Stage 2: Minimal runtime ────────────────────────────────────────────────

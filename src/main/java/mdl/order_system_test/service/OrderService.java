@@ -57,6 +57,9 @@ public class OrderService {
                 .amount(request.getAmount())
                 .items(request.getItems())
                 .status(OrderStatus.PENDING)
+                .demoPaymentFailures(defaultInt(request.getDemoPaymentFailures()))
+                .simulatePaymentTimeout(defaultBoolean(request.getSimulatePaymentTimeout()))
+                .requireApproval(defaultBoolean(request.getRequireApproval()))
                 .build();
 
         order = orderRepository.save(order);
@@ -111,6 +114,38 @@ public class OrderService {
 
     public List<AuditLog> getAuditLogs(String orderId) {
         return auditLogRepository.findByOrderIdOrderByTimestampAsc(orderId);
+    }
+
+    public OrderResponse completeManualApproval(String orderId, boolean approved, String reviewer, String reason) {
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+        if (!Boolean.TRUE.equals(order.getRequireApproval())) {
+            throw new RuntimeException("Order does not require manual approval: " + orderId);
+        }
+        if (order.getWorkflowId() == null || order.getWorkflowId().isBlank()) {
+            throw new RuntimeException("Order workflow has not started yet: " + orderId);
+        }
+
+        Map<String, Object> output = new HashMap<>();
+        output.put("approved", approved);
+        output.put("reviewer", reviewer == null || reviewer.isBlank() ? "demo-reviewer" : reviewer);
+        output.put("reason", reason == null ? "" : reason);
+        output.put("approvedAt", LocalDateTime.now().toString());
+
+        restTemplate.postForEntity(
+                conductorUrl + "/tasks/" + order.getWorkflowId()
+                        + "/manual_approval_ref/COMPLETED?workerid=human-demo",
+                output,
+                String.class);
+
+        auditLogRepository.save(AuditLog.builder()
+                .orderId(order.getOrderId())
+                .action(approved ? "MANUAL_APPROVAL_APPROVED" : "MANUAL_APPROVAL_REJECTED")
+                .details("reviewer=" + output.get("reviewer") + " reason=" + output.get("reason"))
+                .timestamp(LocalDateTime.now())
+                .build());
+
+        return toResponse(order);
     }
 
     /**
@@ -214,6 +249,9 @@ public class OrderService {
         input.put("customerId", order.getCustomerId());
         input.put("amount", order.getAmount());
         input.put("items", order.getItems());
+        input.put("demoPaymentFailures", defaultInt(order.getDemoPaymentFailures()));
+        input.put("simulatePaymentTimeout", defaultBoolean(order.getSimulatePaymentTimeout()));
+        input.put("requireApproval", defaultBoolean(order.getRequireApproval()));
         return input;
     }
 
@@ -228,8 +266,19 @@ public class OrderService {
                 .workflowId(order.getWorkflowId())
                 .failureReason(order.getFailureReason())
                 .trackingNumber(order.getTrackingNumber())
+                .demoPaymentFailures(defaultInt(order.getDemoPaymentFailures()))
+                .simulatePaymentTimeout(defaultBoolean(order.getSimulatePaymentTimeout()))
+                .requireApproval(defaultBoolean(order.getRequireApproval()))
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .build();
+    }
+
+    private int defaultInt(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private boolean defaultBoolean(Boolean value) {
+        return value != null && value;
     }
 }

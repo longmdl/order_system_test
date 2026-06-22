@@ -60,7 +60,9 @@
               "inputParameters": {
                 "orderId":    "${workflow.input.orderId}",
                 "customerId": "${workflow.input.customerId}",
-                "amount":     "${workflow.input.amount}"
+                "amount":     "${workflow.input.amount}",
+                "demoPaymentFailures":    "${workflow.input.demoPaymentFailures}",
+                "simulatePaymentTimeout": "${workflow.input.simulatePaymentTimeout}"
               }
             }
           ],
@@ -105,31 +107,127 @@
         "decisionCases": {
           "success": [
             {
-              "name": "shipment_sub_workflow",
-              "taskReferenceName": "shipment_ref",
-              "type": "SUB_WORKFLOW",
+              "name": "approval_gate",
+              "taskReferenceName": "approval_gate_ref",
+              "type": "SWITCH",
+              "evaluatorType": "javascript",
+              "expression": "$.requiresApproval === true || $.requiresApproval === 'true' ? 'required' : 'skip'",
               "inputParameters": {
-                "orderId":    "${workflow.input.orderId}",
-                "customerId": "${workflow.input.customerId}",
-                "items":      "${workflow.input.items}"
+                "requiresApproval": "${workflow.input.requireApproval}"
               },
-              "subWorkflowParam": {
-                "name": "shipment_sub_workflow",
-                "version": 1
-              }
+              "decisionCases": {
+                "required": [
+                  {
+                    "name": "manual_approval",
+                    "taskReferenceName": "manual_approval_ref",
+                    "type": "HUMAN",
+                    "inputParameters": {
+                      "orderId":    "${workflow.input.orderId}",
+                      "customerId": "${workflow.input.customerId}",
+                      "amount":     "${workflow.input.amount}",
+                      "items":      "${workflow.input.items}",
+                      "prompt":     "Approve order fulfillment before shipment"
+                    }
+                  }
+                ]
+              },
+              "defaultCase": []
             },
             {
-              "name": "update_order_status",
-              "taskReferenceName": "update_status_success_ref",
-              "type": "SIMPLE",
-              "retryCount": 3,
-              "retryLogic": "FIXED",
-              "retryDelaySeconds": 1,
+              "name": "approval_decision",
+              "taskReferenceName": "approval_decision_ref",
+              "type": "SWITCH",
+              "evaluatorType": "javascript",
+              "expression": "$.requiresApproval === true || $.requiresApproval === 'true' ? (($.approved === true || $.approved === 'true') ? 'approved' : 'rejected') : 'approved'",
               "inputParameters": {
-                "orderId":        "${workflow.input.orderId}",
-                "status":         "COMPLETED",
-                "trackingNumber": "${shipment_ref.output.trackingNumber}"
-              }
+                "requiresApproval": "${workflow.input.requireApproval}",
+                "approved":         "${manual_approval_ref.output.approved}"
+              },
+              "decisionCases": {
+                "approved": [
+                  {
+                    "name": "shipment_sub_workflow",
+                    "taskReferenceName": "shipment_ref",
+                    "type": "SUB_WORKFLOW",
+                    "inputParameters": {
+                      "orderId":    "${workflow.input.orderId}",
+                      "customerId": "${workflow.input.customerId}",
+                      "items":      "${workflow.input.items}"
+                    },
+                    "subWorkflowParam": {
+                      "name": "shipment_sub_workflow",
+                      "version": 1
+                    }
+                  },
+                  {
+                    "name": "update_order_status",
+                    "taskReferenceName": "update_status_success_ref",
+                    "type": "SIMPLE",
+                    "retryCount": 3,
+                    "retryLogic": "FIXED",
+                    "retryDelaySeconds": 1,
+                    "inputParameters": {
+                      "orderId":        "${workflow.input.orderId}",
+                      "status":         "COMPLETED",
+                      "trackingNumber": "${shipment_ref.output.trackingNumber}"
+                    }
+                  }
+                ],
+                "rejected": [
+                  {
+                    "name": "release_inventory",
+                    "taskReferenceName": "release_inventory_reject_ref",
+                    "type": "SIMPLE",
+                    "retryCount": 3,
+                    "retryLogic": "EXPONENTIAL_BACKOFF",
+                    "retryDelaySeconds": 2,
+                    "timeoutSeconds": 30,
+                    "timeoutPolicy": "RETRY",
+                    "inputParameters": {
+                      "orderId": "${workflow.input.orderId}",
+                      "items":   "${workflow.input.items}"
+                    }
+                  },
+                  {
+                    "name": "void_payment_authorization",
+                    "taskReferenceName": "void_payment_reject_ref",
+                    "type": "SIMPLE",
+                    "retryCount": 3,
+                    "retryLogic": "EXPONENTIAL_BACKOFF",
+                    "retryDelaySeconds": 2,
+                    "timeoutSeconds": 30,
+                    "timeoutPolicy": "RETRY",
+                    "inputParameters": {
+                      "orderId": "${workflow.input.orderId}"
+                    }
+                  },
+                  {
+                    "name": "update_order_status",
+                    "taskReferenceName": "update_status_reject_ref",
+                    "type": "SIMPLE",
+                    "retryCount": 3,
+                    "retryLogic": "FIXED",
+                    "retryDelaySeconds": 1,
+                    "inputParameters": {
+                      "orderId": "${workflow.input.orderId}",
+                      "status":  "COMPENSATED",
+                      "reason":  "Rejected by manual approval"
+                    }
+                  }
+                ]
+              },
+              "defaultCase": [
+                {
+                  "name": "update_order_status",
+                  "taskReferenceName": "update_status_approval_default_ref",
+                  "type": "SIMPLE",
+                  "inputParameters": {
+                    "orderId": "${workflow.input.orderId}",
+                    "status":  "FAILED",
+                    "reason":  "Unexpected manual approval outcome"
+                  }
+                }
+              ]
             }
           ],
           "compensation": [
