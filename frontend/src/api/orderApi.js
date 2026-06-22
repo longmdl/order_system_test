@@ -19,6 +19,9 @@ export const orderApi = {
   getAllOrders: () =>
     fetch(`${BASE}/orders`).then(handleResponse),
 
+  clearAllOrders: () =>
+    fetch(`${BASE}/orders`, { method: 'DELETE' }).then(handleResponse),
+
   getOrderLogs: (orderId) =>
     fetch(`${BASE}/orders/${orderId}/logs`).then(handleResponse),
 

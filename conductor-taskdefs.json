@@ -1,0 +1,90 @@
+[
+  {
+    "name": "reserve_inventory",
+    "description": "Reserve stock for an order.",
+    "ownerEmail": "dev@example.com",
+    "retryCount": 3,
+    "retryLogic": "EXPONENTIAL_BACKOFF",
+    "retryDelaySeconds": 2,
+    "timeoutSeconds": 30,
+    "responseTimeoutSeconds": 10,
+    "timeoutPolicy": "RETRY"
+  },
+  {
+    "name": "authorize_payment",
+    "description": "Authorize payment for an order. Tuned for retry and timeout demos.",
+    "ownerEmail": "dev@example.com",
+    "retryCount": 2,
+    "retryLogic": "FIXED",
+    "retryDelaySeconds": 3,
+    "timeoutSeconds": 20,
+    "responseTimeoutSeconds": 6,
+    "timeoutPolicy": "RETRY"
+  },
+  {
+    "name": "fraud_check",
+    "description": "Evaluate fraud risk for an order.",
+    "ownerEmail": "dev@example.com",
+    "retryCount": 1,
+    "retryLogic": "FIXED",
+    "retryDelaySeconds": 3,
+    "timeoutSeconds": 20,
+    "responseTimeoutSeconds": 10,
+    "timeoutPolicy": "RETRY"
+  },
+  {
+    "name": "manual_approval",
+    "description": "Manual approval gate used to simulate a human task.",
+    "ownerEmail": "dev@example.com",
+    "retryCount": 0,
+    "retryLogic": "FIXED",
+    "retryDelaySeconds": 0,
+    "timeoutSeconds": 300,
+    "responseTimeoutSeconds": 300,
+    "timeoutPolicy": "TIME_OUT_WF"
+  },
+  {
+    "name": "release_inventory",
+    "description": "Compensation task that releases inventory.",
+    "ownerEmail": "dev@example.com",
+    "retryCount": 3,
+    "retryLogic": "EXPONENTIAL_BACKOFF",
+    "retryDelaySeconds": 2,
+    "timeoutSeconds": 30,
+    "responseTimeoutSeconds": 10,
+    "timeoutPolicy": "RETRY"
+  },
+  {
+    "name": "void_payment_authorization",
+    "description": "Compensation task that voids a payment authorization.",
+    "ownerEmail": "dev@example.com",
+    "retryCount": 3,
+    "retryLogic": "EXPONENTIAL_BACKOFF",
+    "retryDelaySeconds": 2,
+    "timeoutSeconds": 30,
+    "responseTimeoutSeconds": 10,
+    "timeoutPolicy": "RETRY"
+  },
+  {
+    "name": "create_shipment",
+    "description": "Create shipment and tracking number.",
+    "ownerEmail": "dev@example.com",
+    "retryCount": 2,
+    "retryLogic": "FIXED",
+    "retryDelaySeconds": 3,
+    "timeoutSeconds": 60,
+    "responseTimeoutSeconds": 20,
+    "timeoutPolicy": "RETRY"
+  },
+  {
+    "name": "update_order_status",
+    "description": "Persist final order status.",
+    "ownerEmail": "dev@example.com",
+    "retryCount": 3,
+    "retryLogic": "FIXED",
+    "retryDelaySeconds": 1,
+    "timeoutSeconds": 20,
+    "responseTimeoutSeconds": 10,
+    "timeoutPolicy": "RETRY"
+  }
+]

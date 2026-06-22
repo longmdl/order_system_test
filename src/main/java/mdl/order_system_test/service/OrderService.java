@@ -116,6 +116,15 @@ public class OrderService {
         return auditLogRepository.findByOrderIdOrderByTimestampAsc(orderId);
     }
 
+    public Map<String, Long> clearAllOrders() {
+        long orderCount = orderRepository.count();
+        long auditLogCount = auditLogRepository.count();
+        orderRepository.deleteAll();
+        auditLogRepository.deleteAll();
+        log.info("Cleared {} orders and {} audit logs", orderCount, auditLogCount);
+        return Map.of("ordersDeleted", orderCount, "auditLogsDeleted", auditLogCount);
+    }
+
     public OrderResponse completeManualApproval(String orderId, boolean approved, String reviewer, String reason) {
         Order order = orderRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));

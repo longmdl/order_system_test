@@ -31,6 +31,11 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getAllOrders());
     }
 
+    @DeleteMapping
+    public ResponseEntity<Map<String, Long>> clearAllOrders() {
+        return ResponseEntity.ok(orderService.clearAllOrders());
+    }
+
     @GetMapping("/{orderId}")
     public ResponseEntity<OrderResponse> getOrder(@PathVariable String orderId) {
         return ResponseEntity.ok(orderService.getOrderById(orderId));

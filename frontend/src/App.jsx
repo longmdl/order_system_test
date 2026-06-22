@@ -8,6 +8,8 @@ export default function App() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandOrderId, setExpandOrderId] = useState(null)
+  const [clearing, setClearing] = useState(false)
+  const [clearError, setClearError] = useState(null)
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -22,6 +24,21 @@ export default function App() {
     fetchOrders()
     setExpandOrderId(orderId)
   }, [fetchOrders])
+
+  const clearAllOrders = async () => {
+    if (!window.confirm('Clear all orders and audit logs from the demo database?')) return
+    setClearing(true)
+    setClearError(null)
+    try {
+      await orderApi.clearAllOrders()
+      setOrders([])
+      setExpandOrderId(null)
+    } catch (err) {
+      setClearError(err.message)
+    } finally {
+      setClearing(false)
+    }
+  }
 
   // Initial load + auto-refresh every 5 seconds to pick up workflow status updates
   useEffect(() => {
@@ -58,11 +75,26 @@ export default function App() {
       <section style={{ background: '#1e293b', borderRadius: 12, padding: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <h2 style={{ fontSize: 16, fontWeight: 600 }}>Orders ({orders.length})</h2>
-          <button onClick={fetchOrders}
-            style={{ background: '#0f172a', border: '1px solid #334155', color: '#94a3b8', padding: '5px 14px', borderRadius: 7, cursor: 'pointer', fontSize: 12 }}>
-            Refresh
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={fetchOrders}
+              style={{ background: '#0f172a', border: '1px solid #334155', color: '#94a3b8', padding: '5px 14px', borderRadius: 7, cursor: 'pointer', fontSize: 12 }}>
+              Refresh
+            </button>
+            <button onClick={clearAllOrders} disabled={clearing || orders.length === 0}
+              style={{
+                background: orders.length === 0 ? '#1e293b' : '#450a0a',
+                border: '1px solid #7f1d1d',
+                color: orders.length === 0 ? '#475569' : '#fca5a5',
+                padding: '5px 14px',
+                borderRadius: 7,
+                cursor: clearing || orders.length === 0 ? 'not-allowed' : 'pointer',
+                fontSize: 12,
+              }}>
+              {clearing ? 'Clearing...' : 'Clear All'}
+            </button>
+          </div>
         </div>
+        {clearError && <p style={{ color: '#f87171', fontSize: 12, marginBottom: 12 }}>{clearError}</p>}
         <OrderGrid
           orders={orders}
           loading={loading}
